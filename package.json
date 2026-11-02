@@ -1,1 +1,1 @@
-{"name":"jarvis-interface","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node server.js","dev":"node --watch server.js","test":"node --test"},"engines":{"node":">=20"}}
+{"name":"jarvis-interface","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node server.js","dev":"node --watch server.js","test":"node --test"},"engines":{"node":">=20"},"dependencies":{"imapflow":"2.10.0","mailparser":"3.14.1"}}

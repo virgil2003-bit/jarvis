@@ -3,7 +3,7 @@ services:
     name: jarvis
     runtime: node
     plan: free
-    buildCommand: node --check server.js
+    buildCommand: npm ci && node --check server.js
     startCommand: npm start
     healthCheckPath: /health
     envVars:
