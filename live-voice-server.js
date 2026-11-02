@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { authenticateRequest } from './auth.js';
 import { mailConfigured, describeMailError } from './mail.js';
 import { EMAIL_BRIEFING_GUIDANCE, buildBriefingSnapshot } from './briefing.js';
 
@@ -63,8 +63,7 @@ export function createLiveVoiceHandler({env,request,now,readMail}){
  const reply=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data))};
  return async(req,res,pathname)=>{
  if(req.method!=='POST'){reply(res,405,{error:'Use POST.'});return;}
- const expected=Buffer.from(env.JARVIS_ACCESS_TOKEN||''),provided=Buffer.from((req.headers.authorization||'').replace(/^Bearer /,''));
- if(expected.length<16||provided.length!==expected.length||!timingSafeEqual(expected,provided)){reply(res,401,{error:'Enter your private JARVIS password in Settings first.'});return;}
+ if(!authenticateRequest(req,env.JARVIS_ACCESS_TOKEN,{now})){reply(res,401,{error:'Unlock this device to use your private assistant.'});return;}
  const headers={'xi-api-key':env.ELEVENLABS_API_KEY,'Content-Type':'application/json'};
  if(pathname==='/api/mail/review'||pathname==='/api/mail/check'){
   if(!mailConfigured(env)){reply(res,503,{error:'iCloud Mail is not configured in Render.'});return;}

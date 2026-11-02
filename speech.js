@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { authenticateRequest } from './auth.js';
 
 // Private, bounded text-to-speech. No caller-supplied model, voice, URL, or instructions.
 export function createSpeechHandler({env,request,now}){
@@ -7,8 +7,7 @@ export function createSpeechHandler({env,request,now}){
  const fail=(status,error)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error}))};
  if(req.method!=='POST'){fail(405,'Use POST.');return;}
  if(env.JARVIS_ACCESS_TOKEN?.length<16||!env.JARVIS_ACCESS_TOKEN){fail(503,'Configure the AI backend before enabling the natural voice.');return;}
- const expected=Buffer.from(env.JARVIS_ACCESS_TOKEN),provided=Buffer.from((req.headers.authorization||'').replace(/^Bearer /,''));
- if(expected.length!==provided.length||!timingSafeEqual(expected,provided)){fail(401,'Enter your private JARVIS password in Settings to use the natural voice.');return;}
+ if(!authenticateRequest(req,env.JARVIS_ACCESS_TOKEN,{now})){fail(401,'Unlock this device to use the natural voice.');return;}
  if(!String(req.headers['content-type']).startsWith('application/json')){fail(415,'Expected JSON.');return;}
  let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>12000){fail(413,'Speech request is too long.');return;}}
  let body;try{body=JSON.parse(raw)}catch{fail(400,'Invalid JSON.');return;}
