@@ -19,3 +19,11 @@ Chat uses labeled, deterministic demo responses. No AI model, external tools, ca
 The reference https://github.com/gia-guar/JARVIS-ChatGPT is a separate Python voice assistant with legacy Python/CUDA and API dependencies. This interface does not install or execute it. Connecting an AI backend requires a separate server-side integration; keep credentials out of browser code.
 
 Google Fonts is optional; system fonts are used if unavailable. Animations respect reduced-motion preferences and can be paused in Settings.
+
+## Hands-free voice mode
+
+Open the HTTPS site in Chrome or Edge, click **Enable voice**, and allow the microphone. Recognized speech is submitted automatically while enabled. Listening pauses during spoken replies, then resumes. Say **stop listening** or click **Disable voice** to stop. The browser tab must remain open; this is not a background Windows assistant or an offline wake-word detector.
+
+Say **open settings**, **open conversations**, **open protocols**, **go home**, **pause animation**, **resume animation**, **export conversation**, **clear conversation**, **what time is it**, **daily briefing**, **system diagnostics**, **mute voice**, or **unmute voice**. Clearing removes the local chat immediately. In Settings choose an available system voice, adjust its speed, and preview it. Voice availability depends on Windows/browser configuration; no paid provider or custom trained voice model is included. Recognition may require network access to the browser vendor. General chat remains a demo without an AI backend.
+
+Voice lifecycle/navigation, automatic submission, spoken replies, microphone-denial handling, and mobile layout were checked in Chromium with simulated speech APIs. Real microphone recognition and audio playback require a check on the user's device.
