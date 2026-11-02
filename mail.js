@@ -20,11 +20,19 @@ export async function readRecentMail(env,{clientFactory=options=>new ImapFlow(op
  emails.push({uid:item.uid,subject:String(item.envelope?.subject||'(No subject)').slice(0,300),from:(item.envelope?.from||[]).slice(0,3).map(a=>({name:String(a.name||'').slice(0,150),address:String(a.address||'').slice(0,200)})),date:item.envelope?.date?.toISOString()||null,unread:!item.flags?.has('\\Seen'),size:item.size});
  }
  // Do not issue nested IMAP commands while iterating fetch (the iterator holds a lock).
+ const small=emails.filter(email=>!(email.size>100000));
+ const sources=new Map();
+ if(small.length){
+  // One bounded UID FETCH instead of one round trip per message body.
+  for await(const item of client.fetch(small.map(email=>email.uid).join(','),{uid:true,source:{start:0,maxLength:100000}},{uid:true})){
+   if(item.source)sources.set(item.uid,item.source);
+  }
+ }
  for(const email of emails){
  if(email.size>100000){email.text='Body omitted: message exceeds the 100 KB review limit.';email.bodyOmitted=true;continue;}
- const item=await client.fetchOne(email.uid,{source:{start:0,maxLength:100000}},{uid:true});
- if(!item?.source){email.text='Body unavailable.';continue;}
- const parsed=await parse(item.source,{skipHtmlToText:true,skipTextToHtml:true,skipImageLinks:true});
+ const source=sources.get(email.uid);
+ if(!source){email.text='Body unavailable.';continue;}
+ const parsed=await parse(source,{skipHtmlToText:true,skipTextToHtml:true,skipImageLinks:true});
  email.text=parsed.text?.slice(0,3500)||'No plain-text body available. HTML and attachments are not opened.';
  }
  return emails.reverse();
