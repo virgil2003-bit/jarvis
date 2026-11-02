@@ -1,0 +1,7 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createServer} from './server.js';
+import {gunzipSync} from 'node:zlib';
+import http from 'node:http';
+function raw(url,headers){return new Promise((resolve,reject)=>{http.get(url,{headers},res=>{const chunks=[];res.on('data',x=>chunks.push(x));res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:Buffer.concat(chunks)}))}).on('error',reject)})}
+test('voice client compresses, revalidates and preloads before tap handlers',async()=>{const server=createServer({env:{}});await new Promise(r=>server.listen(0,'127.0.0.1',r));try{const base='http://127.0.0.1:'+server.address().port;const full=await raw(base+'/live-voice.bundle.js',{'Accept-Encoding':'gzip'});assert.equal(full.status,200);assert.equal(full.headers['content-encoding'],'gzip');assert.ok(gunzipSync(full.body).toString().includes('createLiveVoice'));const cached=await raw(base+'/live-voice.bundle.js',{'Accept-Encoding':'gzip','If-None-Match':full.headers.etag});assert.equal(cached.status,304);const plain=await raw(base+'/live-voice.bundle.js',{'Accept-Encoding':'gzip;q=0'});assert.equal(plain.headers['content-encoding'],undefined);assert.ok(full.body.length<plain.body.length*.5);const html=await(await fetch(base)).text();assert.ok(html.includes('rel="modulepreload"'));assert.ok(html.includes('id="voice-unlock"'));const app=await(await fetch(base+'/app.js')).text();assert.ok(app.includes("import { createLiveVoice } from './live-voice.bundle.js'"));}finally{await new Promise(r=>server.close(r))}});

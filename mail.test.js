@@ -8,3 +8,20 @@ test('empty inbox avoids fetch',async()=>{const client=fakeClient(0);client.fetc
 test('timeout closes failed connection',async()=>{const client=fakeClient();client.connect=()=>new Promise(()=>{});await assert.rejects(readRecentMail(env,{clientFactory:()=>client,timeoutMs:10}),/MAIL_TIMEOUT/);assert.equal(client.closed,true)});
 test('mail error classification explains login vs network without exposing private errors',async()=>{const {describeMailError}=await import('./mail.js');const login=describeMailError({authenticationFailed:true,message:'private-password'});assert.equal(login.code,'APPLE_LOGIN_REJECTED');assert.ok(!login.message.includes('private-password'));assert.equal(describeMailError({code:'ETIMEDOUT'}).code,'APPLE_CONNECTION_TIMEOUT');assert.equal(describeMailError({code:'ECONNREFUSED'}).code,'APPLE_CONNECTION_FAILED');assert.equal(describeMailError({code:'CERT_HAS_EXPIRED'}).code,'APPLE_TLS_FAILED')});
 test('all five small email bodies are fetched in one bounded command',async()=>{const client=fakeClient(5);let commands=0;client.fetch=async function*(range,query,options){commands++;if(!query.source){assert.equal(range,'1:5');for(let uid=1;uid<=5;uid++)yield {uid,size:100,envelope:{subject:'Message '+uid},flags:new Set()};}else{assert.equal(range,'1,2,3,4,5');assert.deepEqual(options,{uid:true});assert.equal(query.source.maxLength,100000);for(let uid=1;uid<=5;uid++)yield {uid,source:Buffer.from('Subject: Test\r\nContent-Type: text/plain\r\n\r\nMessage '+uid)}}};const result=await readRecentMail(env,{clientFactory:()=>client});assert.equal(commands,2);assert.equal(result.length,5);assert.equal(result[0].text,'Message 5');assert.equal(client.released,true)});
+test('HTML-only email becomes readable text without scripts, tracking images, or link destinations',async()=>{
+ const client=fakeClient(1);
+ client.fetch=async function*(range,query){if(!query.source){yield {uid:1,size:1000,envelope:{subject:'Invoice',date:new Date('invalid')},internalDate:new Date('2026-11-02T05:00:00Z'),flags:new Set(['\\Seen'])};}else yield {uid:1,source:Buffer.from('Subject: Invoice\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><style>secret-style</style><script>secret-script</script><p>Payment is due November 8.</p><a href="https://tracking.invalid/private-token">Review invoice</a><img src="https://tracking.invalid/pixel" alt="secret-image"></html>')};
+ };
+ const [email]=await readRecentMail(env,{clientFactory:()=>client});
+ assert.match(email.text,/Payment is due November 8/);assert.match(email.text,/Review invoice/);
+ assert.doesNotMatch(email.text,/tracking\.invalid|private-token|secret-script|secret-style|secret-image/);
+ assert.equal(email.textSource,'html_text');assert.equal(email.bodyStatus,'available');assert.equal(email.date,null);
+ assert.equal(email.receivedAt,'2026-11-02T05:00:00.000Z');assert.equal(email.unread,false);
+});
+test('one malformed MIME body does not discard the rest of the briefing and truncation is explicit',async()=>{
+ const client=fakeClient(2);
+ client.fetch=async function*(range,query){if(!query.source){for(const uid of [1,2])yield {uid,size:1000,envelope:{subject:'Message '+uid},flags:new Set()};}else {yield {uid:1,source:Buffer.from('BAD')};yield {uid:2,source:Buffer.from('GOOD')};}};
+ const emails=await readRecentMail(env,{clientFactory:()=>client,parse:async source=>{if(source.toString()==='BAD')throw Error('broken MIME');return {text:'x'.repeat(4000)}}});
+ assert.equal(emails.length,2);assert.equal(emails[0].text.length,3500);assert.equal(emails[0].textTruncated,true);assert.equal(emails[0].bodyStatus,'truncated');assert.equal(emails[1].bodyStatus,'parse_failed');
+ assert.equal(client.released,true);assert.equal(client.closed,true);
+});

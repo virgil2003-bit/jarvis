@@ -1,7 +1,7 @@
 import {build} from 'esbuild';
 import {copyFile,readFile,readdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
-const result=await build({entryPoints:['public/live-voice.js'],outfile:'public/live-voice.bundle.js',bundle:true,format:'esm',minify:true,legalComments:'eof',metafile:true,target:['chrome110','edge110']});
+const result=await build({entryPoints:['public/live-voice.js'],outfile:'public/live-voice.bundle.js',bundle:true,format:'esm',minify:true,legalComments:'eof',metafile:true,target:['chrome110','edge110','safari16.4']});
 const packages=new Set();
 for(const input of Object.keys(result.metafile.inputs)){
  if(!input.includes('node_modules/'))continue;
