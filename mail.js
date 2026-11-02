@@ -32,3 +32,14 @@ export async function readRecentMail(env,{clientFactory=options=>new ImapFlow(op
  }
  try{return await Promise.race([read(),timeout])}finally{clearTimeout(timer);client.close()}
 }
+
+// Classify errors without returning Apple responses, credentials, or email content.
+export function describeMailError(error){
+ const code=String(error?.code||error?.serverResponseCode||'');
+ if(error?.authenticationFailed||/AUTHENTICATIONFAILED|AUTHFAILED|EAUTH/i.test(code))return {code:'APPLE_LOGIN_REJECTED',message:'Apple rejected the iCloud login. In Render, check ICLOUD_EMAIL is your full iCloud Mail address and ICLOUD_APP_PASSWORD is the Apple app-specific password for that same account, not your Apple Account password.'};
+ if(error?.message==='MAIL_NOT_CONFIGURED')return {code:'MAIL_NOT_CONFIGURED',message:'Add both ICLOUD_EMAIL and ICLOUD_APP_PASSWORD in Render Environment, then redeploy.'};
+ if(error?.message==='MAIL_TIMEOUT'||/ETIMEDOUT|ETIMEOUT|ECONNECTIONTIMEOUT|ESOCKETTIMEDOUT/i.test(code))return {code:'APPLE_CONNECTION_TIMEOUT',message:'The server timed out connecting to Apple Mail. Check Render can reach imap.mail.me.com on port 993; this does not establish whether the password is valid.'};
+ if(/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ENETUNREACH|EHOSTUNREACH|EPROXY/i.test(code))return {code:'APPLE_CONNECTION_FAILED',message:'The server could not reach Apple IMAP. Check hosting network access to imap.mail.me.com on port 993.'};
+ if(/CERT|TLS|SSL/i.test(code))return {code:'APPLE_TLS_FAILED',message:'The secure connection to Apple Mail failed certificate verification. Do not disable TLS verification.'};
+ return {code:'MAIL_READ_FAILED',message:'iCloud Mail could not be read. Check that iCloud Mail is enabled and the Render address and Apple app-specific password belong to the same account.'};
+}

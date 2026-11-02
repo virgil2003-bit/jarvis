@@ -2,3 +2,5 @@
 .voice-bar{z-index:12}@media(max-width:650px){.drawer{bottom:145px}}
 
 .live-settings{padding:25px 0;border-bottom:1px solid #292929}#live-countdown{font:10px monospace;color:#ccc;letter-spacing:1px;margin-right:6px}
+
+#live-diagnostics{font:10px/1.8 monospace;color:#aaa;white-space:pre-wrap;overflow-wrap:anywhere}details summary{font-size:12px;color:#aaa;cursor:pointer;margin:18px 0}#microphone-select{max-width:65%}
